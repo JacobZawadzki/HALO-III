@@ -33,12 +33,16 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define IMU_I2C_ADDRESS			0x6b
+#define IMU_I2C_ADDRESS_WR		0xD7
 #define IMU_WHO_AM_I_REGISTER	0xf
 #define IMU_DEVICE_ID			0x70
 // IMU Config Registers
 #define IMU_Acc_Cntr1			0x10
 #define IMU_Gyro_Cntr2			0x11
 #define IMU_Status				0x1E
+#define IMU_CTRL3				0x12
+#define IMU_FUNC_CFG_ACCESS		0x01
+#define IMU_CTRL6				0x15
 
 /* USER CODE END PD */
 
@@ -54,14 +58,8 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 static uint8_t init_imu(void);
-void get_imu_data(void);
-static int16_t raw__X_acceleration[3];
-static int16_t raw__Y_acceleration[3];
-static int16_t raw__Z_acceleration[3];
-
-static int16_t raw_X_angular_rate[3];
-static int16_t raw_Y_angular_rate[3];
-static int16_t raw_Z_angular_rate[3];
+static int16_t raw_acceleration[3];
+static int16_t raw_angular_rate[3];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -71,12 +69,13 @@ static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
-
+void get_imu_data(void);
+void tx_data(int16_t *accel, int16_t *angular);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+HAL_StatusTypeDef status;
 /* USER CODE END 0 */
 
 /**
@@ -97,9 +96,6 @@ int main(void)
 
   /* USER CODE BEGIN Init */
 
-  // IMU Initialization
-  uint8_t CHECK = init_imu();
-
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -118,19 +114,24 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
+  // IMU Initialization
+  uint8_t CHECK = init_imu();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  //uint8_t device_id;
+	  //HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_WHO_AM_I_REGISTER, 1, &device_id, 1, HAL_MAX_DELAY);
 	  memset(buffer, 0, sizeof(buffer));
 
-	  if (!CHECK) {
-
+	  if (CHECK != HAL_OK) {
+		  strcpy((char*)buffer, "Error Tx\r\n");
+		  HAL_UART_Transmit(&huart1, buffer, strlen((char*)buffer), 1000);
 	  } else {
 		  get_imu_data();
-		  //HAL_UART_Transmit(&huart1, buffer, strlen((char*)buffer), 1000);
+		  tx_data(raw_acceleration, raw_angular_rate);
 	  }
 
     /* USER CODE END WHILE */
@@ -148,10 +149,6 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-
-  /** Configure LSE Drive Capability
-  */
-  __HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_LOW);
 
   /** Configure the main internal regulator output voltage
   */
@@ -361,9 +358,8 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 static uint8_t init_imu(void)
 {
-	HAL_StatusTypeDef status;
-	uint8_t device_id = 0;
-	uint8_t cntrl_1 = 0x20, cntrl_2 = 0x20;
+	uint8_t device_id = 0, test[4];
+	uint8_t cntrl_1 = 0x02, cntrl_2 = 0x02, cntrl_3 = 0xC5, cntrl_6 = 0x00, func_cntrl = 0x00;
 
 	status = HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_WHO_AM_I_REGISTER, 1, &device_id, 1, HAL_MAX_DELAY);
 	/* Couldn't detect the IMU over I2C */
@@ -372,49 +368,143 @@ static uint8_t init_imu(void)
 
 	/* Detected the IMU on I2C */
 	if ((status == HAL_OK) && (device_id == IMU_DEVICE_ID)) {
-		HAL_I2C_Mem_Write(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_Acc_Cntr1, 1, &cntrl_1, 1, HAL_MAX_DELAY);
-		HAL_I2C_Mem_Write(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_Gyro_Cntr2, 1, &cntrl_2, 1, HAL_MAX_DELAY);
+		/*status =HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_Acc_Cntr1, 1, &test[0], 1, HAL_MAX_DELAY);
+		status =HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_FUNC_CFG_ACCESS, 1, &test[1], 1, HAL_MAX_DELAY);
+		//HAL_Delay(5);
+		status =HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_Acc_Cntr1, 1, &cntrl_1, 1, HAL_MAX_DELAY);
+		status =HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_FUNC_CFG_ACCESS, 1, &test2, 1, HAL_MAX_DELAY);
+
+		status =HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_Acc_Cntr1, 1, &test[2], 1, HAL_MAX_DELAY);
+		status =HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_FUNC_CFG_ACCESS, 1, &test[3], 1, HAL_MAX_DELAY);*/
+
+		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_Acc_Cntr1, 1, &cntrl_1, 1, HAL_MAX_DELAY);
+		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_Gyro_Cntr2, 1, &cntrl_2, 1, HAL_MAX_DELAY);
+		status =HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_Acc_Cntr1, 1, &test[0], 1, HAL_MAX_DELAY);
+		status =HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_Gyro_Cntr2, 1, &test[1], 1, HAL_MAX_DELAY);
+		/*HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_CTRL6, 1, &cntrl_6, 1, HAL_MAX_DELAY);
+		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_CTRL3, 1, &cntrl_3, 1, HAL_MAX_DELAY);
+		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_FUNC_CFG_ACCESS, 1, &func_cntrl, 1, HAL_MAX_DELAY);*/
+
 		return 0;
 	}
 	return 1;
 }
 
 void get_imu_data(void) {
-	uint8_t OUTX_L_G = 0x22, OUTX_L_A = 0x28;
-	uint8_t g_buff_x[6], a_buff_x[6], acc_stat, gyro_stat; //temp buffer for data
-	uint8_t status_buff[1];
+	uint8_t OUTX_L_G = 0x22, OUTX_L_A = 0x28; //Register addresses - lower 8 bits
+	uint8_t OUTX_H_G = 0x23, OUTX_H_A = 0x29; //Register addresses - higher 8 bits
+	uint8_t OUTY_L_G = 0x24, OUTY_L_A = 0x2A;
+	uint8_t OUTY_H_G = 0x25, OUTY_H_A = 0x2B;
+	uint8_t OUTZ_L_G = 0x26, OUTZ_L_A = 0x2C;
+	uint8_t OUTZ_H_G = 0x27, OUTZ_H_A = 0x2D;
+	uint8_t g_buff[6], a_buff[6], status_buff[8]; //Temp buffers
+	uint8_t acc_stat, gyro_stat;
 
+	//Clear Data buffers
+	memset(raw_angular_rate, 0x00, 3 * sizeof(int16_t));
+	memset(raw_acceleration, 0x00, 3 * sizeof(int16_t));
 	memset(status_buff, 0x00, sizeof(status_buff));
-	HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_Status, 1, &status_buff[0], 6, HAL_MAX_DELAY);
+	memset(a_buff, 0x00, sizeof(a_buff));
+	memset(g_buff, 0x00, sizeof(g_buff));
+
+	//Read data status buffer
+	HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_Status, 1, status_buff, 1, HAL_MAX_DELAY);
+
+	//Set bits of data flags
 	acc_stat = status_buff[0] & 0x01;
 	gyro_stat = (status_buff[0] >> 1) & 0x01;
 
 	//Acceleration data
-	if (acc_stat == 1) {
-		memset(raw__X_acceleration, 0x00, 3 * sizeof(int16_t));
-		HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTX_L_A, 1, &a_buff_x[0], 6, HAL_MAX_DELAY);
+	if (acc_stat == 1) { //If new data ready at accelerometer
+		//Read accelerometer X data
+		HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTX_L_A, 1, &a_buff[0], 1, HAL_MAX_DELAY);
+		HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTX_H_A, 1, &a_buff[1], 1, HAL_MAX_DELAY);
+		//Read accelerometer Y data
+		HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTY_L_A, 1, &a_buff[2], 1, HAL_MAX_DELAY);
+		HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTY_H_A, 1, &a_buff[3], 1, HAL_MAX_DELAY);
+		//Read accelerometer Z data
+		HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTZ_L_A, 1, &a_buff[4], 1, HAL_MAX_DELAY);
+		HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTZ_H_A, 1, &a_buff[5], 1, HAL_MAX_DELAY);
+
 		//Convert 8 bit data to 16 bit buffer
-		raw__X_acceleration[0] = (int16_t)a_buff_x[1];
-		raw__X_acceleration[0] = (raw__X_acceleration[0] * 256) + (int16_t)a_buff_x[0]; //buff[1] bit shifted 8 bits
-		raw__X_acceleration[1] = (int16_t)a_buff_x[3];
-		raw__X_acceleration[1] = (raw__X_acceleration[1] * 256) + (int16_t)a_buff_x[2]; //buff[3] bit shifted 8 bits
-		raw__X_acceleration[2] = (int16_t)a_buff_x[5];
-		raw__X_acceleration[2] = (raw__X_acceleration[2] * 256) + (int16_t)a_buff_x[4]; //buff[5] bit shifted 8 bits
-	}
-	//Gyroscope data
-	if (gyro_stat == 1) {
-		memset(raw_X_angular_rate, 0x00, 3 * sizeof(int16_t));
-		HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTX_L_G, 1, &g_buff_x[0], 6, HAL_MAX_DELAY);
-		//Convert 8 bit data to 16 bit buffer
-		raw_X_angular_rate[0] = (int16_t)g_buff_x[1];
-		raw_X_angular_rate[0] = (raw_X_angular_rate[0] * 256) + (int16_t)g_buff_x[0]; //buff[1] bit shifted 8 bits
-		raw_X_angular_rate[1] = (int16_t)g_buff_x[3];
-		raw_X_angular_rate[1] = (raw_X_angular_rate[1] * 256) + (int16_t)g_buff_x[2]; //buff[3] bit shifted 8 bits
-		raw_X_angular_rate[2] = (int16_t)g_buff_x[5];
-		raw_X_angular_rate[2] = (raw_X_angular_rate[2] * 256) + (int16_t)g_buff_x[4]; //buff[5] bit shifted 8 bits
+		raw_acceleration[0] = ((uint16_t) a_buff[1] << 8) | a_buff[0]; // High | Low
+		raw_acceleration[1] = ((uint16_t) a_buff[3] << 8) | a_buff[2];
+		raw_acceleration[2] = ((uint16_t) a_buff[5] << 8) | a_buff[4];
+
+		// If value is negative convert using 2's compliment
+		if (raw_acceleration[0] & 0x8000) {
+			uint16_t temp = raw_acceleration[0];
+			temp = -((~temp + 1) & 0x7FFF);
+			raw_acceleration[0] = temp;
+		}
+		if (raw_acceleration[1] & 0x8000) {
+			uint16_t temp = raw_acceleration[1];
+			temp = -((~temp + 1) & 0x7FFF);
+			raw_acceleration[1] = temp;
+		}
+		if (raw_acceleration[2] & 0x8000) {
+			uint16_t temp = raw_acceleration[2];
+			temp = -((~temp + 1) & 0x7FFF);
+			raw_acceleration[2] = temp;
+		}
 	}
 
+	//Gyroscope data
+	if (gyro_stat == 1) { //If new data ready at gyro
+		//Read gyroscope X data
+		HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTX_L_G, 1, &g_buff[0], 1, HAL_MAX_DELAY);
+		HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTX_H_G, 1, &g_buff[1], 1, HAL_MAX_DELAY);
+		//Read gyroscope Y data
+		HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTY_L_G, 1, &g_buff[2], 1, HAL_MAX_DELAY);
+		HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTY_H_G, 1, &g_buff[3], 1, HAL_MAX_DELAY);
+		//Read gyroscope Z data
+		HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTZ_L_G, 1, &g_buff[4], 1, HAL_MAX_DELAY);
+		HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTZ_H_G, 1, &g_buff[5], 1, HAL_MAX_DELAY);
+
+		//Convert 8 bit data to 16 bit buffer
+		raw_angular_rate[0] = ((uint16_t) g_buff[1] << 8) | g_buff[0]; // High | Low
+		raw_angular_rate[1] = ((uint16_t) g_buff[3] << 8) | g_buff[2];
+		raw_angular_rate[2] = ((uint16_t) g_buff[5] << 8) | g_buff[4];
+
+		// If value is negative convert using 2's compliment
+		if ((raw_angular_rate[0] & 0x8000)) {
+			uint16_t temp = raw_angular_rate[0];
+			temp = -((~temp + 1) & 0x7FFF);
+			raw_angular_rate[0] = temp;
+		}
+		if ((raw_angular_rate[1] & 0x8000)) {
+			uint16_t temp = raw_angular_rate[1];
+			temp = -((~temp + 1) & 0x7FFF);
+			raw_angular_rate[1] = temp;
+		}
+		if ((raw_angular_rate[2] & 0x8000)) {
+			uint16_t temp = raw_angular_rate[2];
+			temp = -((~temp + 1) & 0x7FFF);
+			raw_angular_rate[2] = temp;
+		}
+	}
 }
+
+/* UPDATES NEEDED */
+/* Add in Y and Z data */
+/* Check what size buffer is needed for tx_buffer */
+/* */
+/* */
+
+void tx_data(int16_t *accel, int16_t *angular) {
+	static uint8_t tx_buffer[50]; //CHECK THIS BUFFER
+
+	sprintf((char *)tx_buffer, "Acceleration rate X axis [+/-2g]: %i\r\n", accel[0]);
+	HAL_UART_Transmit(&huart1, (uint8_t *)tx_buffer, strlen((char const *)tx_buffer), 1000);
+
+	sprintf((char *)tx_buffer, "Angular rate X axis [deg/sec]: %i\r\n", angular[0]);
+	HAL_UART_Transmit(&huart1, (uint8_t *)tx_buffer, strlen((char const *)tx_buffer), 1000);
+
+	// DEBUG DELAY TO BE ABLE TO READ SERIAL TERMINAL
+	HAL_Delay(1000);
+
+}
+
 /* USER CODE END 4 */
 
 /**
