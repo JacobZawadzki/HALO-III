@@ -75,7 +75,7 @@ static void MX_USART1_UART_Init(void);
 static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 void get_imu_data(void);
-void tx_data(int16_t *accel, int16_t *angular);
+void tx_data(float *accel, float *angular);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -360,8 +360,8 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 static uint8_t init_imu(void)
 {
-	uint8_t device_id = 0, test[4];
-	uint8_t cntrl_1 = 0x02, cntrl_2 = 0x02, cntrl_3 = 0xC5, cntrl_6 = 0x00, func_cntrl = 0x00;
+	uint8_t device_id = 0;
+	uint8_t cntrl_1 = 0x02, cntrl_2 = 0x02, cntrl_3 = 0xC4;
 
 	status = HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_WHO_AM_I_REGISTER, 1, &device_id, 1, HAL_MAX_DELAY);
 	/* Couldn't detect the IMU over I2C */
@@ -370,23 +370,10 @@ static uint8_t init_imu(void)
 
 	/* Detected the IMU on I2C */
 	if ((status == HAL_OK) && (device_id == IMU_DEVICE_ID)) {
-		/*status =HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_Acc_Cntr1, 1, &test[0], 1, HAL_MAX_DELAY);
-		status =HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_FUNC_CFG_ACCESS, 1, &test[1], 1, HAL_MAX_DELAY);
-		//HAL_Delay(5);
-		status =HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_Acc_Cntr1, 1, &cntrl_1, 1, HAL_MAX_DELAY);
-		status =HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_FUNC_CFG_ACCESS, 1, &test2, 1, HAL_MAX_DELAY);
-
-		status =HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_Acc_Cntr1, 1, &test[2], 1, HAL_MAX_DELAY);
-		status =HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_FUNC_CFG_ACCESS, 1, &test[3], 1, HAL_MAX_DELAY);*/
-
-		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_Acc_Cntr1, 1, &cntrl_1, 1, HAL_MAX_DELAY);
-		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_Gyro_Cntr2, 1, &cntrl_2, 1, HAL_MAX_DELAY);
-		status =HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_Acc_Cntr1, 1, &test[0], 1, HAL_MAX_DELAY);
-		status =HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), IMU_Gyro_Cntr2, 1, &test[1], 1, HAL_MAX_DELAY);
-		/*HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_CTRL6, 1, &cntrl_6, 1, HAL_MAX_DELAY);
-		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_CTRL3, 1, &cntrl_3, 1, HAL_MAX_DELAY);
-		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_FUNC_CFG_ACCESS, 1, &func_cntrl, 1, HAL_MAX_DELAY);*/
-
+		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_CTRL3, 1, &cntrl_3, 1, HAL_MAX_DELAY); //reboot mem content
+		HAL_Delay(5);
+		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_Acc_Cntr1, 1, &cntrl_1, 1, HAL_MAX_DELAY); //enable accelerometer
+		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_Gyro_Cntr2, 1, &cntrl_2, 1, HAL_MAX_DELAY); //enable gyro
 		return 0;
 	}
 	return 1;
@@ -494,7 +481,7 @@ void get_imu_data(void) {
 	//Convert 16 bit value to m/s^2
 	raw_ang[0] = (raw_ang_ini[0] * GYRO_SENS) / 1000;
 	raw_ang[1] = (raw_ang_ini[1] * GYRO_SENS) / 1000;
-	raw_ang[1] = (raw_ang_ini[2] * GYRO_SENS) / 1000;
+	raw_ang[2] = (raw_ang_ini[2] * GYRO_SENS) / 1000;
 }
 
 /* UPDATES NEEDED */
@@ -503,17 +490,25 @@ void get_imu_data(void) {
 /* */
 /* */
 
-void tx_data(int16_t *accel, int16_t *angular) {
-	static uint8_t tx_buffer[50]; //CHECK THIS BUFFER
+void tx_data(float *accel, float *angular) {
+	static uint8_t tx_buffer[100]; //CHECK THIS BUFFER
 
-	sprintf((char *)tx_buffer, "Acceleration rate X axis [+/-2g]: %i\r\n", accel[0]);
+	sprintf((char *)tx_buffer, "Accel rate X axis [+/-2g]: %f\r\n", accel[0]);
+	HAL_UART_Transmit(&huart1, (uint8_t *)tx_buffer, strlen((char const *)tx_buffer), 1000);
+	sprintf((char *)tx_buffer, "Accel rate Y axis [+/-2g]: %f\r\n", accel[1]);
+	HAL_UART_Transmit(&huart1, (uint8_t *)tx_buffer, strlen((char const *)tx_buffer), 1000);
+	sprintf((char *)tx_buffer, "Accel rate Z axis [+/-2g]: %f\r\n", accel[2]);
 	HAL_UART_Transmit(&huart1, (uint8_t *)tx_buffer, strlen((char const *)tx_buffer), 1000);
 
-	sprintf((char *)tx_buffer, "Angular rate X axis [deg/sec]: %i\r\n", angular[0]);
+	sprintf((char *)tx_buffer, "Angular rate X axis [deg/sec]: %f\r\n", angular[0]);
+	HAL_UART_Transmit(&huart1, (uint8_t *)tx_buffer, strlen((char const *)tx_buffer), 1000);
+	sprintf((char *)tx_buffer, "Angular rate Y axis [deg/sec]: %f\r\n", angular[1]);
+	HAL_UART_Transmit(&huart1, (uint8_t *)tx_buffer, strlen((char const *)tx_buffer), 1000);
+	sprintf((char *)tx_buffer, "Angular rate Z axis [deg/sec]: %f\r\n", angular[2]);
 	HAL_UART_Transmit(&huart1, (uint8_t *)tx_buffer, strlen((char const *)tx_buffer), 1000);
 
 	// DEBUG DELAY TO BE ABLE TO READ SERIAL TERMINAL
-	//HAL_Delay(1000);
+	HAL_Delay(500);
 
 }
 
