@@ -1,4 +1,3 @@
-Capstone Project
+Capstone Project (development in progress)
 
-MCU - Nucleo-STM32
-IMU - LSM6DSV16X
+Dead reckoning position tracking using MCU - Nucleo-STM32, and IMU - LSM6DSV16X
