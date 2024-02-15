@@ -75,7 +75,8 @@ static void MX_USART1_UART_Init(void);
 static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 void get_imu_data(void);
-void tx_data(float *accel, float *angular);
+void tx_all_data(float *accel, float *angular);
+void tx_accel_x_y(float *accel);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -133,7 +134,8 @@ int main(void)
 		  HAL_UART_Transmit(&huart1, buffer, strlen((char*)buffer), 1000);
 	  } else {
 		  get_imu_data();
-		  tx_data(raw_accel, raw_ang);
+		  //tx_all_data(raw_accel, raw_ang);
+		  tx_accel_x_y(raw_accel);
 	  }
 
     /* USER CODE END WHILE */
@@ -484,14 +486,8 @@ void get_imu_data(void) {
 	raw_ang[2] = (raw_ang_ini[2] * GYRO_SENS) / 1000;
 }
 
-/* UPDATES NEEDED */
-/* Add in Y and Z data */
-/* Check what size buffer is needed for tx_buffer */
-/* */
-/* */
-
-void tx_data(float *accel, float *angular) {
-	static uint8_t tx_buffer[100]; //CHECK THIS BUFFER
+void tx_all_data(float *accel, float *angular) {
+	static uint8_t tx_buffer[100];
 
 	sprintf((char *)tx_buffer, "Accel rate X axis [+/-2g]: %f\r\n", accel[0]);
 	HAL_UART_Transmit(&huart1, (uint8_t *)tx_buffer, strlen((char const *)tx_buffer), 1000);
@@ -510,6 +506,23 @@ void tx_data(float *accel, float *angular) {
 	// DEBUG DELAY TO BE ABLE TO READ SERIAL TERMINAL
 	HAL_Delay(500);
 
+}
+
+void tx_accel_x_y(float *accel) {
+	/*uint8_t buffer[sizeof(float) * 2]; // Byte array to store the first two float values
+
+	// Copy the first two float values to the byte array
+	memcpy(buffer, accel, sizeof(float));
+
+	// Transmit the byte array via UART
+	HAL_UART_Transmit(&huart1, &buffer[0], sizeof(float), HAL_MAX_DELAY);
+	HAL_UART_Transmit(&huart1, &buffer[1], sizeof(float), HAL_MAX_DELAY);*/
+	static uint8_t tx_buffer[100];
+
+	sprintf((char *)tx_buffer, "%f,", accel[0]);
+	HAL_UART_Transmit(&huart1, (uint8_t *)tx_buffer, strlen((char const *)tx_buffer), 1000);
+	sprintf((char *)tx_buffer, "%f,", accel[1]);
+	HAL_UART_Transmit(&huart1, (uint8_t *)tx_buffer, strlen((char const *)tx_buffer), 1000);
 }
 
 /* USER CODE END 4 */
