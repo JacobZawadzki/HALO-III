@@ -1,0 +1,29 @@
+clear
+clc
+
+s = serialport("COM5",115200);
+i = 1;
+tic
+
+while (toc < 10)
+   
+   time(i) = toc
+   if(rem(i,2))
+       ydata(i) = readline(s);
+       
+   else
+       xdata(i) = readline(s);
+
+   end
+    
+
+   i = i + 1;
+end
+
+Xfinal = xdata(~cellfun("isempty",xdata))
+XinMPS2 = (str2double(Xfinal) / 1000) * 9.81;
+Yfinal = ydata(~cellfun("isempty",ydata))
+YinMPS2 = (str2double(Yfinal) / 1000) * 9.81;
+
+figure
+plot(time(1,1:40),YinMPS2);
