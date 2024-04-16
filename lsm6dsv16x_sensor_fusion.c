@@ -77,23 +77,20 @@
  * Select FIFO samples watermark, max value is 512
  * in FIFO are stored acc, gyro and timestamp samples
  */
-
 #define BOOT_TIME         10
 #define FIFO_WATERMARK    32
 #define IMU_I2C_ADDRESS			0x6b
 #define IMU_I2C_ADDRESS_WR		0xD7
 /* Private variables ---------------------------------------------------------*/
-static uint8_t whoamI;
+static uint8_t whoamI = 0xf;
 static uint8_t tx_buffer[1000];
 
 /* Private variables ---------------------------------------------------------*/
 static lsm6dsv16x_fifo_sflp_raw_t fifo_sflp;
 
-I2C_HandleTypeDef hi2c1;
-UART_HandleTypeDef huart1;
-
 /* Extern variables ----------------------------------------------------------*/
-
+extern I2C_HandleTypeDef hi2c1;
+extern UART_HandleTypeDef huart1;
 /* Private functions ---------------------------------------------------------*/
 
 /*
@@ -319,11 +316,12 @@ void lsm6dsv16x_sensor_fusion(void)
  * @param  len       number of consecutive register to write
  *
  */
-static int32_t platform_write(void *handle, uint8_t reg, const uint8_t *bufp, uint16_t len)
+static int32_t platform_write(void *handle, uint8_t reg, const uint8_t *bufp,
+                              uint16_t len)
 {
 	//HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_CTRL3, 1, &cntrl_3, 1, HAL_MAX_DELAY);
-	HAL_I2C_Mem_Write(handle, IMU_I2C_ADDRESS_WR, reg, 1, bufp, 1, HAL_MAX_DELAY);
-	return 0;
+		HAL_I2C_Mem_Write(handle, IMU_I2C_ADDRESS_WR, reg, 1, bufp, 1, HAL_MAX_DELAY);
+  return 0;
 }
 
 /*
@@ -340,8 +338,8 @@ static int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp,
                              uint16_t len)
 {
 	//HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTZ_H_G, 1, &g_buff[5], 1, HAL_MAX_DELAY);
-	HAL_I2C_Mem_Read(handle, (IMU_I2C_ADDRESS << 1), reg, 1, &bufp[5], 1, HAL_MAX_DELAY);
-	return 0;
+		HAL_I2C_Mem_Read(handle, (IMU_I2C_ADDRESS << 1), reg, 1, &bufp[5], 1, HAL_MAX_DELAY);
+  return 0;
 }
 
 /*
@@ -353,8 +351,8 @@ static int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp,
  */
 static void tx_com(uint8_t *tx_buffer, uint16_t len)
 {
-  //HAL_UART_Transmit(&huart1, (uint8_t *)tx_buffer, strlen((char const *)tx_buffer), 1000);
-  HAL_UART_Transmit(&huart1, tx_buffer, len, HAL_MAX_DELAY);
+	//HAL_UART_Transmit(&huart1, (uint8_t *)tx_buffer, strlen((char const *)tx_buffer), 1000);
+	  HAL_UART_Transmit(&huart1, tx_buffer, len, HAL_MAX_DELAY);
 }
 
 /*
@@ -365,7 +363,7 @@ static void tx_com(uint8_t *tx_buffer, uint16_t len)
  */
 static void platform_delay(uint32_t ms)
 {
-  HAL_Delay(ms);
+	HAL_Delay(ms);
 }
 
 /*
@@ -373,11 +371,11 @@ static void platform_delay(uint32_t ms)
  */
 static void platform_init(void)
 {
-#if defined(STEVAL_MKI109V3)
+/*#if defined(STEVAL_MKI109V3)
   TIM3->CCR1 = PWM_3V3;
   TIM3->CCR2 = PWM_3V3;
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   HAL_Delay(1000);
-#endif
+#endif*/
 }

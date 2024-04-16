@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include <string.h>
 #include <stdio.h>
+#include "lsm6dsv16x_reg.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -77,6 +78,8 @@ static void MX_I2C1_Init(void);
 void get_imu_data(void);
 void tx_all_data(float *accel, float *angular);
 void tx_accel_x_y(float *accel);
+
+extern void lsm6dsv16x_sensor_fusion(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -133,9 +136,11 @@ int main(void)
 		  strcpy((char*)buffer, "Error Tx\r\n");
 		  HAL_UART_Transmit(&huart1, buffer, strlen((char*)buffer), 1000);
 	  } else {
-		  get_imu_data();
+		  //get_imu_data();
 		  //tx_all_data(raw_accel, raw_ang);
-		  tx_accel_x_y(raw_accel);
+		  //tx_accel_x_y(raw_accel);
+		  lsm6dsv16x_sensor_fusion();
+		  HAL_Delay(500);
 	  }
 
     /* USER CODE END WHILE */
