@@ -140,7 +140,7 @@ int main(void)
 		  //tx_all_data(raw_accel, raw_ang);
 		  //tx_accel_x_y(raw_accel);
 		  lsm6dsv16x_sensor_fusion();
-		  HAL_Delay(500);
+
 	  }
 
     /* USER CODE END WHILE */
@@ -379,8 +379,8 @@ static uint8_t init_imu(void)
 	if ((status == HAL_OK) && (device_id == IMU_DEVICE_ID)) {
 		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_CTRL3, 1, &cntrl_3, 1, HAL_MAX_DELAY); //reboot mem content
 		HAL_Delay(5);
-		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_Acc_Cntr1, 1, &cntrl_1, 1, HAL_MAX_DELAY); //enable accelerometer
-		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_Gyro_Cntr2, 1, &cntrl_2, 1, HAL_MAX_DELAY); //enable gyro
+//		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_Acc_Cntr1, 1, &cntrl_1, 1, HAL_MAX_DELAY); //enable accelerometer
+//		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_Gyro_Cntr2, 1, &cntrl_2, 1, HAL_MAX_DELAY); //enable gyro
 		return 0;
 	}
 	return 1;

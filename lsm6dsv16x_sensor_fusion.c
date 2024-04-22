@@ -320,7 +320,7 @@ static int32_t platform_write(void *handle, uint8_t reg, const uint8_t *bufp,
                               uint16_t len)
 {
 	//HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, IMU_CTRL3, 1, &cntrl_3, 1, HAL_MAX_DELAY);
-		HAL_I2C_Mem_Write(handle, IMU_I2C_ADDRESS_WR, reg, 1, bufp, 1, HAL_MAX_DELAY);
+		HAL_I2C_Mem_Write(&hi2c1, IMU_I2C_ADDRESS_WR, reg, 1, bufp, len, HAL_MAX_DELAY);
   return 0;
 }
 
@@ -338,7 +338,7 @@ static int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp,
                              uint16_t len)
 {
 	//HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), OUTZ_H_G, 1, &g_buff[5], 1, HAL_MAX_DELAY);
-		HAL_I2C_Mem_Read(handle, (IMU_I2C_ADDRESS << 1), reg, 1, &bufp[5], 1, HAL_MAX_DELAY);
+		HAL_I2C_Mem_Read(&hi2c1, (IMU_I2C_ADDRESS << 1), reg, 1, bufp, len, HAL_MAX_DELAY);
   return 0;
 }
 
@@ -352,7 +352,8 @@ static int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp,
 static void tx_com(uint8_t *tx_buffer, uint16_t len)
 {
 	//HAL_UART_Transmit(&huart1, (uint8_t *)tx_buffer, strlen((char const *)tx_buffer), 1000);
-	  HAL_UART_Transmit(&huart1, tx_buffer, len, HAL_MAX_DELAY);
+	  HAL_UART_Transmit(&huart1, (uint8_t *)tx_buffer, strlen((char const *)tx_buffer), 1000);
+	  HAL_Delay(500);
 }
 
 /*
